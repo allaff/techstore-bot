@@ -1,0 +1,282 @@
+/* static/style.css - VERSÃO COMPLETA (Tela Cheia + Animação) */
+
+/* 1. Reset e Base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #d1d7db;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  /* Importante para não ter barra de rolagem na janela */
+}
+
+/* 2. Container Principal */
+#chat-container {
+  width: 100%;
+  height: 100%;
+  background: #efe7dd;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 3. Cabeçalho */
+header {
+  background-color: #008069;
+  color: white;
+  padding: 15px 25px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  /* Garante que fica em cima das mensagens */
+}
+
+header h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+header p {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.3rem;
+}
+
+/* 4. Área de Mensagens */
+#messages {
+  flex: 1;
+  /* Ocupa todo o espaço disponível */
+  padding: 20px 5%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+  background-repeat: repeat;
+}
+
+.message {
+  padding: 10px 15px;
+  border-radius: 8px;
+  max-width: 600px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  position: relative;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  word-wrap: break-word;
+}
+
+.bot {
+  background: white;
+  color: #333;
+  align-self: flex-start;
+  border-top-left-radius: 0;
+}
+
+.user {
+  background: #d9fdd3;
+  color: #111;
+  align-self: flex-end;
+  border-top-right-radius: 0;
+}
+
+/* 5. ANIMAÇÃO DE DIGITANDO (O Novo Código) */
+.typing-indicator {
+  background-color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  border-top-left-radius: 0;
+  display: table;
+  align-self: flex-start;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  width: fit-content;
+}
+
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #b0b0b0;
+  border-radius: 50%;
+  animation: typing 1.4s infinite both;
+  margin: 0 2px;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+
+  50% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+}
+
+/* 6. Área de Input (AQUI ESTAVA O PROBLEMA PROVAVELMENTE) */
+#input-area {
+  padding: 15px 20px;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-top: 1px solid #ddd;
+  /* Importante para não ser esmagado */
+  min-height: 70px;
+}
+
+input {
+  flex: 1;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  font-size: 1rem;
+  background: white;
+}
+
+button {
+  background: #008069;
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #006b58;
+}
+
+/* Em static/style.css (Adiciona no final) */
+
+/* Botão de Limpar no Cabeçalho */
+#clear-btn {
+  background: transparent;
+  /* Fundo transparente */
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-left: auto;
+  /* IMPORTANTE: Empurra o botão para a direita total */
+  width: auto;
+  /* Remove largura fixa se houver */
+  height: auto;
+  transition: transform 0.2s;
+  opacity: 0.7;
+}
+
+#clear-btn:hover {
+  transform: scale(1.1);
+  /* Efeito de zoom ao passar o mouse */
+  opacity: 1;
+  background: transparent;
+  /* Garante que não fica verde ao passar o mouse */
+}
+
+/* Em static/style.css (Adiciona no final) */
+
+/* Notificação Flutuante (Toast) */
+.toast-notification {
+  position: absolute;
+  bottom: 90px;
+  /* Fica logo acima da barra de digitar */
+  left: 50%;
+  transform: translateX(-50%);
+  /* Centraliza horizontalmente */
+  background-color: #323232;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  opacity: 0;
+  animation: slideUpFade 0.3s forwards;
+  font-size: 0.9rem;
+  min-width: 250px;
+  justify-content: space-between;
+}
+
+/* Botão DESFAZER dentro da notificação */
+.undo-btn {
+  background: none;
+  border: none;
+  color: #e5ddd5;
+  /* Cor clara */
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+  width: auto;
+  /* Sobrescreve estilo global de botões */
+  height: auto;
+}
+
+.undo-btn:hover {
+  color: #25d366;
+  /* Verde ao passar o mouse */
+  text-decoration: underline;
+  background: none;
+}
+
+/* Animação de entrada */
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
