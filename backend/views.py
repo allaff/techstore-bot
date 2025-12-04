@@ -1,66 +1,64 @@
 import json
 import datetime
 import os
+import requests
 import google.generativeai as genai
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 
-# --- 1. IMPORTAÇÃO SEGURA DO DOTENV ---
+# --- 1. CONFIGURAÇÃO DE AMBIENTE ---
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    print("⚠️ AVISO: A biblioteca 'python-dotenv' não está instalada.")
-    print("⚠️ Rode no terminal: pip install python-dotenv")
+    print("⚠️ python-dotenv não instalado.")
 
-# --- 2. CARREGAMENTO DA CHAVE ---
 API_KEY = os.getenv("API_KEY")
+N8N_URL = os.getenv("N8N_WEBHOOK_URL")
 
-# Só configura se a chave existir
+# --- 2. CONFIGURAÇÃO DA IA ---
 if API_KEY:
     genai.configure(api_key=API_KEY)
 else:
-    print("❌ ERRO: Chave API não encontrada no arquivo .env!")
+    print("❌ ERRO: API_KEY não encontrada no .env")
 
-# --- CONTROLE DA LOJA ---
+# --- 3. DADOS DA LOJA ---
 SIMULAR_LOJA_FECHADA = False 
 FILA_DE_ESPERA = []
 
 MANUAL_DA_LOJA = """
 VOCÊ É: O assistente virtual oficial da 'TechStore'.
-SUA PERSONALIDADE: Simpático, direto, profissional e usa emojis ocasionalmente.
-REGRAS:
-1. Responda apenas sobre produtos da TechStore.
-2. NUNCA invente produtos fora do catálogo.
-3. Use os preços exatos da lista.
+OBJETIVO: Vender produtos.
+
 CATÁLOGO:
-- Notebook Gamer Dell (i7, 16GB RAM, RTX 3050): R$ 5.200,00
-- Notebook Básico Lenovo (i3, 4GB RAM): R$ 2.100,00
+- Notebook Gamer Dell: R$ 5.200,00
+- Notebook Básico Lenovo: R$ 2.100,00
 - Mouse Sem Fio Logitech: R$ 80,00
 - Teclado Mecânico RGB: R$ 250,00
 - Monitor 24" Samsung: R$ 800,00
 - Cabo HDMI 2m: R$ 25,00 (ESGOTADO)
+
+🛑 REGRA DE OURO (AUTOMAÇÃO):
+Sempre que o cliente confirmar explicitamente que vai comprar (ex: "quero", "fechado"), 
+você DEVE começar sua resposta com a tag [VENDA] seguida do resumo.
+Exemplo: "[VENDA] 1x Notebook Dell - R$ 5.200"
 """
 
-# --- 3. INICIALIZAÇÃO SEGURA DO MODELO ---
-chat_session = None # Começa vazio para não dar erro
-
+# --- 4. INICIALIZAÇÃO DO MODELO ---
+chat_session = None
 if API_KEY:
     try:
-        print("--- Tentando conectar ao Gemini 2.5 Flash... ---")
         model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=MANUAL_DA_LOJA)
         chat_session = model.start_chat(history=[])
-        print("✅ Conectado ao Gemini 2.5 Flash!")
-    except Exception as e:
-        print(f"⚠️ Erro no 2.5 ({e}). Tentando fallback para 1.5...")
+        print("✅ Conectado ao Gemini 2.5")
+    except:
         try:
             model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=MANUAL_DA_LOJA)
             chat_session = model.start_chat(history=[])
-            print("✅ Conectado ao Gemini 1.5 Flash (Fallback).")
-        except Exception as e2:
-            print(f"❌ Falha total na IA: {e2}")
-            # O servidor continua rodando, mas sem IA.
+            print("✅ Conectado ao Gemini 1.5 (Fallback)")
+        except:
+            print("❌ Falha na conexão com a IA")
 
 def index(request):
     return render(request, 'index.html')
@@ -70,42 +68,61 @@ def loja_esta_aberta():
     hora = datetime.datetime.now().hour
     return 8 <= hora < 18
 
+def enviar_para_n8n(texto_venda):
+    if not N8N_URL:
+        print("⚠️ N8N_URL não configurada.")
+        return
+    try:
+        payload = {
+            "data": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "resumo": texto_venda.replace("[VENDA]", "").strip(),
+            "origem": "Chatbot TechStore"
+        }
+        requests.post(N8N_URL, json=payload)
+        print("✅ Enviado para n8n!")
+    except Exception as e:
+        print(f"❌ Erro n8n: {e}")
+
 @csrf_exempt
 def chat_api(request):
     if request.method == 'POST':
         try:
-            # Verifica se a IA carregou antes de tentar usar
+            # Verifica IA
             if not chat_session:
-                return JsonResponse({'error': 'O sistema de IA está indisponível no momento (Erro de Chave ou Modelo).'})
+                return JsonResponse({'error': 'IA indisponível.'})
 
             data = json.loads(request.body)
             mensagem_usuario = data.get('message')
-            
-            if not mensagem_usuario:
-                return JsonResponse({'error': 'Mensagem vazia'}, status=400)
 
-            # 1. LOJA FECHADA?
+            if not mensagem_usuario:
+                return JsonResponse({'error': 'Vazio'}, status=400)
+
+            # 1. Loja Fechada
             if not loja_esta_aberta():
                 posicao = len(FILA_DE_ESPERA) + 1
                 FILA_DE_ESPERA.append(mensagem_usuario)
-                
-                msg = (f"🛑 A TechStore encerrou o expediente (08h às 18h).\n"
-                       f"Você está na posição #{posicao} da fila de espera.")
-                return JsonResponse({'reply': msg})
+                return JsonResponse({'reply': f"🛑 Loja fechada. Você é o #{posicao} na fila."})
 
-            # 2. LOJA ABERTA
+            # 2. Loja Aberta
             aviso_fila = ""
             if len(FILA_DE_ESPERA) > 0:
-                qtd = len(FILA_DE_ESPERA)
                 FILA_DE_ESPERA.clear()
-                aviso_fila = f"🔔 [SISTEMA: {qtd} atendimentos pendentes iniciados!]\n\n"
+                aviso_fila = "🔔 [Fila processada!]\n\n"
 
-            # Envia para a IA
+            # Envia para IA
             response = chat_session.send_message(mensagem_usuario)
-            return JsonResponse({'reply': aviso_fila + response.text})
-                
+            resposta_ia = response.text
+
+            # 3. Verifica Venda (N8N)
+            if "[VENDA]" in resposta_ia:
+                enviar_para_n8n(resposta_ia)
+                resposta_limpa = resposta_ia.replace("[VENDA]", "🎉 Pedido Confirmado: ")
+                return JsonResponse({'reply': aviso_fila + resposta_limpa})
+
+            return JsonResponse({'reply': aviso_fila + resposta_ia})
+
         except Exception as e:
-            print(f"\nERRO TRATADO: {e}\n")
-            return JsonResponse({'error': "Ocorreu um erro ao processar. Tente novamente."})
-    
+            print(f"Erro: {e}")
+            return JsonResponse({'error': "Erro interno."})
+
     return JsonResponse({'error': 'Método inválido'}, status=400)
