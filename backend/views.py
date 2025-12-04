@@ -126,3 +126,22 @@ def chat_api(request):
             return JsonResponse({'error': "Erro interno."})
 
     return JsonResponse({'error': 'Método inválido'}, status=400)
+
+def loja_esta_aberta():
+    if SIMULAR_LOJA_FECHADA:
+        return False
+    
+    # Pega a hora UTC (Universal)
+    agora_utc = datetime.datetime.now(datetime.timezone.utc)
+    
+    # Converte para Fuso Horário de Brasília (UTC -3)
+    # Se estiveres em Portugal, muda para -0 ou +1
+    fuso_brasil = datetime.timezone(datetime.timedelta(hours=-3))
+    agora_br = agora_utc.astimezone(fuso_brasil)
+    
+    hora = agora_br.hour
+    
+    print(f"--- Hora no Servidor: {hora}h ---") # Para debug no log
+    
+    # Aberto das 08:00 às 17:59
+    return 8 <= hora < 18
