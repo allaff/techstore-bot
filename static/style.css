@@ -1,4 +1,4 @@
-/* static/style.css - VERSÃO COMPLETA (Tela Cheia + Animação) */
+/* static/style.css - VERSÃO RESPONSIVA FINAL (Mobile + Desktop) */
 
 /* 1. Reset e Base */
 * {
@@ -8,35 +8,73 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+:root {
+  /* Cores padrão para facilitar ajustes */
+  --header-bg: #008069;
+  --bg-color: #efe7dd;
+  --user-msg-bg: #d9fdd3;
+  --bot-msg-bg: #ffffff;
+}
+
 body {
   background-color: #d1d7db;
-  height: 100vh;
+  /* TRUQUE PARA CELULAR: Usamos 'dvh' (Dynamic Viewport Height) 
+       Isso desconta a barra de endereço do Safari/Chrome automaticamente */
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
-  /* Importante para não ter barra de rolagem na janela */
+  /* Impede rolagem da página inteira */
+  display: flex;
+  justify-content: center;
 }
 
 /* 2. Container Principal */
 #chat-container {
   width: 100%;
   height: 100%;
-  background: #efe7dd;
+  background: var(--bg-color);
   display: flex;
   flex-direction: column;
   position: relative;
+  /* Sombra suave apenas para dar destaque */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+/* --- REGRA PARA PC/NOTEBOOK (Telas maiores que 1000px) --- */
+@media (min-width: 1000px) {
+  body {
+    align-items: center;
+    /* Centraliza o chat no meio da tela */
+  }
+
+  #chat-container {
+    max-width: 1200px;
+    /* Não deixa ficar "esticadão" */
+    height: 95dvh;
+    /* Deixa uma borda em cima e em baixo */
+    border-radius: 12px;
+    /* Arredonda os cantos no PC */
+    overflow: hidden;
+    border: 1px solid #ccc;
+  }
 }
 
 /* 3. Cabeçalho */
 header {
-  background-color: #008069;
+  background-color: var(--header-bg);
   color: white;
-  padding: 15px 25px;
+  padding: 15px 20px;
+
+  /* Proteção para iPhone (Notch no topo) */
+  padding-top: max(15px, env(safe-area-inset-top));
+
   display: flex;
   align-items: center;
   gap: 15px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   z-index: 10;
-  /* Garante que fica em cima das mensagens */
+  flex-shrink: 0;
+  /* Garante que o cabeçalho não encolhe */
 }
 
 header h1 {
@@ -46,60 +84,138 @@ header h1 {
 
 header p {
   font-size: 0.85rem;
-  opacity: 0.8;
+  opacity: 0.9;
   margin-top: 2px;
 }
 
 .avatar {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   background: white;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
+}
+
+/* Botão de Limpar (Lixeira) */
+#clear-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.8);
+  transition: 0.2s;
+  width: auto;
+  height: auto;
+}
+
+#clear-btn:hover {
+  color: white;
+  transform: scale(1.1);
 }
 
 /* 4. Área de Mensagens */
 #messages {
   flex: 1;
   /* Ocupa todo o espaço disponível */
-  padding: 20px 5%;
+  padding: 20px 15px;
   overflow-y: auto;
+  /* Rolagem interna */
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
   background-repeat: repeat;
+
+  /* Rolagem suave e elástica no iOS */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .message {
-  padding: 10px 15px;
-  border-radius: 8px;
-  max-width: 600px;
+  padding: 10px 14px;
+  border-radius: 7px;
+  max-width: 85%;
+  /* No celular ocupa mais espaço */
   font-size: 0.95rem;
   line-height: 1.4;
   position: relative;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
 }
 
+/* Ajuste para Desktop: Balões menores */
+@media (min-width: 768px) {
+  .message {
+    max-width: 60%;
+  }
+}
+
 .bot {
-  background: white;
+  background: var(--bot-msg-bg);
   color: #333;
   align-self: flex-start;
   border-top-left-radius: 0;
 }
 
 .user {
-  background: #d9fdd3;
+  background: var(--user-msg-bg);
   color: #111;
   align-self: flex-end;
   border-top-right-radius: 0;
 }
 
-/* 5. ANIMAÇÃO DE DIGITANDO (O Novo Código) */
+/* 5. Área de Digitação (FIX DO IPHONE) */
+#input-area {
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #ddd;
+  flex-shrink: 0;
+  /* Não deixa sumir */
+
+  /* PADDING RESPONSIVO (O Segredo do iPhone) */
+  padding: 10px 15px;
+  /* Adiciona espaço extra em baixo se tiver a barra "Home" do iPhone */
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  min-height: 70px;
+}
+
+input {
+  flex: 1;
+  padding: 12px 15px;
+  border: none;
+  border-radius: 20px;
+  outline: none;
+  font-size: 1rem;
+  background: white;
+}
+
+button {
+  background: var(--header-bg);
+  color: white;
+  border: none;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+button:hover {
+  background: #006b58;
+}
+
+/* 6. Animação e Toast */
 .typing-indicator {
   background-color: white;
   padding: 15px 20px;
@@ -109,29 +225,16 @@ header p {
   align-self: flex-start;
   margin-bottom: 10px;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-  width: fit-content;
 }
 
 .typing-indicator span {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background-color: #b0b0b0;
   border-radius: 50%;
   animation: typing 1.4s infinite both;
   margin: 0 2px;
-}
-
-.typing-indicator span:nth-child(1) {
-  animation-delay: 0s;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
 }
 
 @keyframes typing {
@@ -151,124 +254,36 @@ header p {
   }
 }
 
-/* 6. Área de Input (AQUI ESTAVA O PROBLEMA PROVAVELMENTE) */
-#input-area {
-  padding: 15px 20px;
-  background: #f0f2f5;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  border-top: 1px solid #ddd;
-  /* Importante para não ser esmagado */
-  min-height: 70px;
-}
-
-input {
-  flex: 1;
-  padding: 15px 20px;
-  border: none;
-  border-radius: 8px;
-  outline: none;
-  font-size: 1rem;
-  background: white;
-}
-
-button {
-  background: #008069;
-  color: white;
-  border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background 0.2s;
-}
-
-button:hover {
-  background: #006b58;
-}
-
-/* Em static/style.css (Adiciona no final) */
-
-/* Botão de Limpar no Cabeçalho */
-#clear-btn {
-  background: transparent;
-  /* Fundo transparente */
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  margin-left: auto;
-  /* IMPORTANTE: Empurra o botão para a direita total */
-  width: auto;
-  /* Remove largura fixa se houver */
-  height: auto;
-  transition: transform 0.2s;
-  opacity: 0.7;
-}
-
-#clear-btn:hover {
-  transform: scale(1.1);
-  /* Efeito de zoom ao passar o mouse */
-  opacity: 1;
-  background: transparent;
-  /* Garante que não fica verde ao passar o mouse */
-}
-
-/* Em static/style.css (Adiciona no final) */
-
-/* Notificação Flutuante (Toast) */
 .toast-notification {
   position: absolute;
   bottom: 90px;
-  /* Fica logo acima da barra de digitar */
   left: 50%;
   transform: translateX(-50%);
-  /* Centraliza horizontalmente */
   background-color: #323232;
   color: white;
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 50px;
   display: flex;
-  align-items: center;
   gap: 15px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
-  opacity: 0;
   animation: slideUpFade 0.3s forwards;
   font-size: 0.9rem;
-  min-width: 250px;
   justify-content: space-between;
+  min-width: 250px;
 }
 
-/* Botão DESFAZER dentro da notificação */
 .undo-btn {
-  background: none;
-  border: none;
   color: #e5ddd5;
-  /* Cor clara */
   font-weight: bold;
-  text-transform: uppercase;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-  font-size: 0.85rem;
-  width: auto;
-  /* Sobrescreve estilo global de botões */
-  height: auto;
-}
-
-.undo-btn:hover {
-  color: #25d366;
-  /* Verde ao passar o mouse */
-  text-decoration: underline;
   background: none;
+  font-size: 0.8rem;
+  height: auto;
+  width: auto;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
 }
 
-/* Animação de entrada */
 @keyframes slideUpFade {
   from {
     opacity: 0;
