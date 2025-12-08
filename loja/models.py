@@ -5,11 +5,5 @@ class ClienteFila(models.Model):
     data_entrada = models.DateTimeField(auto_now_add=True)
     atendido = models.BooleanField(default=False)
 
-    # --- O SEGREDO ESTÁ AQUI ---
-    class Meta:
-        # Isto diz ao Django: "Eu pertenço ao app 'backend', não discuta!"
-        app_label = 'backend' 
-    # ---------------------------
-
     def __str__(self):
         return f"{self.nome_ou_mensagem} - {self.data_entrada}"

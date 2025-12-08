@@ -6,7 +6,7 @@ import google.generativeai as genai
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
-from .models import ClienteFila 
+from loja.models import ClienteFila 
 
 # --- 1. CONFIGURAÇÃO ---
 try:
