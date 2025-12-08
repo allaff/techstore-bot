@@ -6,26 +6,23 @@ import google.generativeai as genai
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
+from .models import ClienteFila 
 
-# --- 1. CONFIGURAÇÃO DE AMBIENTE ---
+# --- 1. CONFIGURAÇÃO ---
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    print("⚠️ python-dotenv não instalado.")
+    pass
 
 API_KEY = os.getenv("API_KEY")
 N8N_URL = os.getenv("N8N_WEBHOOK_URL")
 
-# --- 2. CONFIGURAÇÃO DA IA ---
 if API_KEY:
     genai.configure(api_key=API_KEY)
-else:
-    print("❌ ERRO: API_KEY não encontrada no .env")
 
-# --- 3. DADOS DA LOJA ---
+# --- CONTROLE DA LOJA ---
 SIMULAR_LOJA_FECHADA = False 
-FILA_DE_ESPERA = []
 
 MANUAL_DA_LOJA = """
 VOCÊ É: O assistente virtual oficial da 'TechStore'.
@@ -45,30 +42,32 @@ você DEVE começar sua resposta com a tag [VENDA] seguida do resumo.
 Exemplo: "[VENDA] 1x Notebook Dell - R$ 5.200"
 """
 
-# --- 4. INICIALIZAÇÃO DO MODELO ---
+# --- INICIALIZAÇÃO DO MODELO ---
 chat_session = None
 if API_KEY:
     try:
         model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=MANUAL_DA_LOJA)
         chat_session = model.start_chat(history=[])
-        print("✅ Conectado ao Gemini 2.5")
     except:
         try:
             model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=MANUAL_DA_LOJA)
             chat_session = model.start_chat(history=[])
-            print("✅ Conectado ao Gemini 1.5 (Fallback)")
         except:
-            print("❌ Falha na conexão com a IA")
+            print("Erro ao conectar IA")
 
 def index(request):
     return render(request, 'index.html')
 
 def loja_esta_aberta():
     if SIMULAR_LOJA_FECHADA: return False
-    hora = datetime.datetime.now().hour
-    return 8 <= hora < 18
+    # Fuso Horário Brasil (UTC-3)
+    agora_utc = datetime.datetime.now(datetime.timezone.utc)
+    fuso_brasil = datetime.timezone(datetime.timedelta(hours=-3))
+    agora_br = agora_utc.astimezone(fuso_brasil)
+    return 8 <= agora_br.hour < 18
 
-def enviar_para_n8n(texto_venda):
+# --- FUNÇÃO ATUALIZADA: Recebe o ID do Cliente ---
+def enviar_para_n8n(texto_venda, cliente_id):
     if not N8N_URL:
         print("⚠️ N8N_URL não configurada.")
         return
@@ -76,10 +75,11 @@ def enviar_para_n8n(texto_venda):
         payload = {
             "data": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "resumo": texto_venda.replace("[VENDA]", "").strip(),
+            "cliente": f"Sessão: {cliente_id[:8]}...", # Envia o ID único
             "origem": "Chatbot TechStore"
         }
         requests.post(N8N_URL, json=payload)
-        print("✅ Enviado para n8n!")
+        print(f"✅ Venda do cliente {cliente_id[:5]} enviada para n8n!")
     except Exception as e:
         print(f"❌ Erro n8n: {e}")
 
@@ -87,7 +87,11 @@ def enviar_para_n8n(texto_venda):
 def chat_api(request):
     if request.method == 'POST':
         try:
-            # Verifica IA
+            # 1. IDENTIFICA O USUÁRIO (SESSÃO)
+            if not request.session.session_key:
+                request.session.create() # Cria um ID se não existir
+            session_id = request.session.session_key
+
             if not chat_session:
                 return JsonResponse({'error': 'IA indisponível.'})
 
@@ -97,25 +101,28 @@ def chat_api(request):
             if not mensagem_usuario:
                 return JsonResponse({'error': 'Vazio'}, status=400)
 
-            # 1. Loja Fechada
+            # 2. LOJA FECHADA?
             if not loja_esta_aberta():
-                posicao = len(FILA_DE_ESPERA) + 1
-                FILA_DE_ESPERA.append(mensagem_usuario)
+                # Salva no banco com o ID para sabermos quem é quem na fila
+                ClienteFila.objects.create(
+                    nome_ou_mensagem=f"[ID: {session_id[:5]}] {mensagem_usuario}"
+                )
+                posicao = ClienteFila.objects.filter(atendido=False).count()
                 return JsonResponse({'reply': f"🛑 Loja fechada. Você é o #{posicao} na fila."})
 
-            # 2. Loja Aberta
+            # 3. LOJA ABERTA
             aviso_fila = ""
-            if len(FILA_DE_ESPERA) > 0:
-                FILA_DE_ESPERA.clear()
+            if ClienteFila.objects.filter(atendido=False).exists():
+                ClienteFila.objects.filter(atendido=False).update(atendido=True)
                 aviso_fila = "🔔 [Fila processada!]\n\n"
 
             # Envia para IA
             response = chat_session.send_message(mensagem_usuario)
             resposta_ia = response.text
 
-            # 3. Verifica Venda (N8N)
+            # 4. VERIFICA VENDA E MANDA O ID DO CLIENTE
             if "[VENDA]" in resposta_ia:
-                enviar_para_n8n(resposta_ia)
+                enviar_para_n8n(resposta_ia, session_id) # <--- Passamos o ID aqui
                 resposta_limpa = resposta_ia.replace("[VENDA]", "🎉 Pedido Confirmado: ")
                 return JsonResponse({'reply': aviso_fila + resposta_limpa})
 
@@ -126,22 +133,3 @@ def chat_api(request):
             return JsonResponse({'error': "Erro interno."})
 
     return JsonResponse({'error': 'Método inválido'}, status=400)
-
-def loja_esta_aberta():
-    if SIMULAR_LOJA_FECHADA:
-        return False
-    
-    # Pega a hora UTC (Universal)
-    agora_utc = datetime.datetime.now(datetime.timezone.utc)
-    
-    # Converte para Fuso Horário de Brasília (UTC -3)
-    # Se estiveres em Portugal, muda para -0 ou +1
-    fuso_brasil = datetime.timezone(datetime.timedelta(hours=-3))
-    agora_br = agora_utc.astimezone(fuso_brasil)
-    
-    hora = agora_br.hour
-    
-    print(f"--- Hora no Servidor: {hora}h ---") # Para debug no log
-    
-    # Aberto das 08:00 às 17:59
-    return 8 <= hora < 18

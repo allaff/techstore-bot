@@ -295,3 +295,23 @@ button:hover {
     transform: translate(-50%, 0);
   }
 }
+
+@media (min-width: 1000px) {
+  body {
+    align-items: center;
+    /* Centraliza verticalmente */
+    background-color: #d1d7db;
+    /* Garante a cor de fundo fora do chat */
+  }
+
+  #chat-container {
+    max-width: 900px;
+    /* <--- MUDAMOS DE 1200px PARA 900px (Padrão mais bonito) */
+    height: 90dvh;
+    /* Um pouco menor que a altura total */
+    border-radius: 16px;
+    border: 1px solid #d1d7db;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+    /* Sombra mais profissional */
+  }
+}
